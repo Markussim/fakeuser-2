@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os
 import random
 import discord
+import json
 from pprint import pprint
 from openai import OpenAI
 
@@ -13,7 +14,7 @@ openai_key = os.getenv("OPENAI_API_KEY")
 discord_key = os.getenv("DISCORD_BOT_TOKEN")
 BACKSTORY_FILE = "backstory.txt"
 CHANCE_TO_RESPOND = 1  # 1 in 10 chance to respond
-OPENAI_MODEL = "gpt-4-vision-preview"
+OPENAI_MODEL = "gpt-3.5-turbo-1106"
 MAX_TOKENS = 300
 MESSAGE_HISTORY_LIMIT = 5
 
@@ -40,19 +41,67 @@ class MyClient(discord.Client):
             # Send typing indicator
             await message.channel.typing()
 
+            tools = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "remeber",
+                        "description": "Remember something for later.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "input": {
+                                    "type": "string",
+                                    "description": "Use this to remember things beyond a few messages. Note that this replaces the file each time. Use this as often as you want, the size of this memory is practically infinite.",
+                                }
+                            },
+                            "required": ["input"],
+                        },
+                    },
+                }
+            ]
+
+            content_list = await self.construct_content_list(message)
+
             response = openaiClient.chat.completions.create(
                 model=OPENAI_MODEL,
-                messages=await self.construct_content_list(message),
+                messages=content_list,
                 max_tokens=MAX_TOKENS,
+                tools=tools,
+                tool_choice="auto",
             )
 
-            print(response.choices[0].message.content)
+            if response.choices[0].message.tool_calls:
+                rawjson = response.choices[0].message.tool_calls[0].function.arguments
+
+                # Parse json from string
+                parsedjson = json.loads(rawjson)
+
+                remember(parsedjson.get("input"))
+
+            if response.choices[0].message.content == None:
+                content_list = await self.construct_content_list(message)
+
+                function_response = openaiClient.chat.completions.create(
+                    model=OPENAI_MODEL,
+                    messages=content_list,
+                    max_tokens=MAX_TOKENS,
+                    tools=tools,
+                    tool_choice="none",
+                )
+
+                await message.channel.send(function_response.choices[0].message.content)
+                return
 
             await message.channel.send(response.choices[0].message.content)
 
     async def construct_content_list(self, message):
+        # Read memories.txt
+        with open("memories.txt", "r") as file:
+            memories = file.read()
+
         # First message is the backstory with the role 'system'
-        content_list = [{"role": "system", "content": backstory}]
+        content_list = [{"role": "system", "content": backstory + memories}]
 
         # Temporarily store messages before reversing
         message_history = []
@@ -80,6 +129,13 @@ class MyClient(discord.Client):
         content_list.extend(message_history)
 
         return content_list
+
+
+# Function that writes input to a specified file
+def remember(input):
+    # Write to "memories.txt"
+    with open("memories.txt", "w") as file:
+        file.write(input)
 
 
 intents = discord.Intents.default()
