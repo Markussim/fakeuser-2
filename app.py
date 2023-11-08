@@ -64,14 +64,25 @@ class MyClient(discord.Client):
                     {"role": "assistant", "content": past_message.content}
                 )
             else:
-                user_content = (
-                    f"Message from {past_message.author.name}: \n{past_message.content}"
-                )
+                new_message = {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"Message from {past_message.author.name}: \n{past_message.content}",
+                        },
+                    ],
+                }
+
                 if past_message.attachments:
-                    user_content += "\n" + "\n".join(
-                        [attachment.url for attachment in past_message.attachments]
+                    new_message["content"].append(
+                        {
+                            "type": "image_url",
+                            "image_url": past_message.attachments[0].url,
+                        }
                     )
-                message_history.append({"role": "user", "content": user_content})
+
+                message_history.append(new_message)
 
         # Reverse the message_history to be in chronological order
         message_history.reverse()
