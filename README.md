@@ -59,7 +59,7 @@ You can customize the behavior of the bot by modifying the constants at the begi
 
 ## License
 
-Add your license information here.
+See [license](/LICENSE)
 
 ## Acknowledgments
 
