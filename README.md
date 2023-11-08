@@ -16,7 +16,7 @@ This Discord bot integrates OpenAI's GPT model for generating message responses 
 
 - Python 3.x
 - Discord account and a Discord server where you have permissions to add bots.
-- An OpenAI API key (you can get one from [OpenAI](https://beta.openai.com/))
+- An OpenAI API key (you can get one from [OpenAI](https://platform.openai.com/))
 
 ### Installation
 
